@@ -1,0 +1,311 @@
+/*----------------------------------------------------------------------------
+
+	CURRENT-CLAMP SIMULATIONS OF TC CELLS
+	=====================================
+	Accession number ModelDB: 232876
+
+	Simulations of a simplified model of thalamic relay cell.
+
+	The current model is described in the following paper:
+		Zeldenrust F, Chameau P, Wadman WJ. Spike and Burst Coding in Thalamocortical Relay Cells. PLoS Computational Biology, 2017.
+
+
+	The original model, the basis of the current one, is described in the following paper:
+	   Destexhe A, Neubig M, Ulrich D and Huguenard JR.  Dendritic
+	   low-threshold calcium currents in thalamic relay cells.  
+	   Journal of Neuroscience 18: 3574-3588, 1998.
+
+	Please cite these references when using this model.
+----------------------------------------------------------------------------*/
+
+//----------------------------------------------------------------------------
+//  load and define general graphical procedures
+//----------------------------------------------------------------------------
+
+load_file("nrngui.hoc")		// updated command version of above
+nrncontrolmenu()		// create control menu
+
+objectvar g[20]			// max 20 graphs
+ngraph = 0
+
+proc addgraph() { local ii	// define subroutine to add a new graph
+				// addgraph("variable", minvalue, maxvalue)
+	ngraph = ngraph+1
+	ii = ngraph-1
+	g[ii] = new Graph()
+	g[ii].size(tstart,tstop,$2,$3)
+	g[ii].xaxis()
+	g[ii].yaxis()
+	g[ii].addvar($s1,1,0)
+	g[ii].save_name("graphList[0].")
+	graphList[0].append(g[ii])
+}
+
+proc addshape() { local ii	// define subroutine to add a new shape
+				// addshape()
+	ngraph = ngraph+1
+	ii = ngraph-1
+	g[ii] = new PlotShape()
+	g[ii].scale(-130,50)
+}
+
+
+//----------------------------------------------------------------------------
+//  transient time
+//----------------------------------------------------------------------------
+
+trans = 00
+
+print " "
+print ">> Transient time of ",trans," ms"
+print " "
+
+
+//----------------------------------------------------------------------------
+//  create multi-compartment geometry and insert currents
+//----------------------------------------------------------------------------
+
+xopen("cells/tc3.geo")		// read geometry file
+
+corrD = 7.954			// dendritic surface correction
+				// (estimated by fitting voltage-clamp traces)
+				
+corrR = 0.75  // make R 25% higher, so g=1/1.25=0.8, do also for C for correction RC time
+corrC = 0.9   // make RC time smaller
+
+G_pas = corrR*3.79e-5
+E_pas = -73			// to fit current-clamp data (was -71 to -73)
+E_pas = -76.5			// within 3 mV error
+C_m   = corrC*corrR*0.88
+
+
+forall { 				// insert passive current everywhere
+	insert pas
+	g_pas = G_pas * corrD
+	e_pas = E_pas
+	cm = C_m * corrD
+	Ra = 173
+	L = L
+	
+}
+
+soma {
+	g_pas = G_pas
+	cm = C_m
+
+	insert hh2			// insert fast spikes
+	ena = 50
+	ek = -100
+	vtraub_hh2 = -52
+	gnabar_hh2 = 0.1
+	gkbar_hh2 = 0.1
+	
+	insert iL     		// insert IL (high-threshold calcium)
+	pcabar_iL=0.00005
+	
+	
+	
+	insert iC   // IKC (calcium-dependent potassium)
+	gkbar_iC=0.001
+	}
+
+
+forall {
+	insert itGHK		// T-current everywhere
+	cai = 2.4e-4 
+	cao = 2 
+	eca = 120 
+	shift_itGHK = -1	// screening charge shift + 3 mV error
+	gcabar_itGHK = corrD * 0.0002
+	qm_itGHK = 2.5
+	qh_itGHK = 2.5
+	
+
+	insert cad			// calcium diffusion everywhere
+	depth_cad = 0.1 * corrD
+	kt_cad = 0			// no pump
+	kd_cad = 1e-4
+	taur_cad = 5
+	cainf_cad = 2.4e-4	
+	
+	insert iar 			// Ih everywhere
+	ghbar_iar = 1.3e-04
+
+}
+
+
+
+xopen("loc3.oc")		// load procedures for localizing T-current
+
+// high distal density, match detailed model in voltage-clamp
+localize(1.7e-5,corrD*9.5e-5)
+
+  
+//----------------------------------------------------------------------------
+//  setup simulation parameters
+//----------------------------------------------------------------------------
+
+Dt = 0.1
+npoints = 9030000         // longer traces             stim_long
+
+dt = 0.1			// must be submultiple of Dt
+tstart = trans
+tstop = trans + npoints * Dt
+runStopAt = tstop
+steps_per_ms = 1/Dt
+
+celsius=30
+
+v_init = -74			// approximate resting Vm
+
+
+//----------------------------------------------------------------------------
+//  insert electrodes in the soma
+//----------------------------------------------------------------------------
+
+if(ismenu==0) {
+  xopen("El.oc")		// Electrode with series resistance
+  ismenu = 1
+}
+
+access soma
+
+// DC current electrode for setting holding potential
+//----------------------------------------------------------------------------
+
+objectvar El1			// insert electrode
+El1 = new Electrode()
+electrodes_present = 1
+
+
+// CURRENT-CLAMP MODE
+
+soma El1.stim.loc(0.5)		// put electrode in current-clamp mode
+El1.stim.del = 0
+El1.stim.dur = tstop - tstart
+El1.stim.amp = -0.7     // for -80
+// El1.stim.amp = -0.475   // for -70 
+// El1.stim.amp = -0.275   // for -60
+// El1.stim.amp = -0.0    // for -50
+
+// Variable current electrode for frozen noise stimulus
+//----------------------------------------------------------------------------
+objectvar El2             
+soma El2 = new IClamp(0.5) 
+El2.del = 0
+El2.dur = tstop-tstart   
+
+// Frozen noise stimulus   
+objref r,f
+f = new File()
+r = new Vector()
+// f.ropen("stimt1s3.dat") // tau = 1 ms stimulus
+f.ropen("stim_long.dat")
+r.scanf(f)
+r.play(&El2.amp, dt)    
+
+// Variable current electrode for extra noise
+//----------------------------------------------------------------------------
+// objectvar El3             
+// soma El3 = new IClamp(0.5) 
+// El3.del = 0
+// El3.dur = tstop-tstart   
+// 
+// Noisy stimulus extra noise 
+// objref r1,f1
+// f1 = new File()
+// r1 = new Vector()
+// f1.ropen("stimvar.dat")
+// r1.scanf(f1)
+// r1.play(&El3.amp, dt)    
+
+//----------------------------------------------------------------------------
+//  add graphs
+//----------------------------------------------------------------------------
+
+addgraph("soma.v(0.5)",-100,50)		// soma
+
+
+//----------------------------------------------------------------------------
+//  Save
+//----------------------------------------------------------------------------
+objref rect, recv, recinternalcalcium, recicap, recih, recit, recikc, recmit, rechit, reco1ih, reco2ih, recmikc
+
+// General
+//----------------------------------------------------------------------------
+// rect = new Vector()
+// rect.record(&t)
+recv = new Vector()
+recv.record(&soma.v(0.5))
+// recinternalcalcium = new Vector()
+// recinternalcalcium.record(&soma.v(0.5))
+
+// Currents
+//----------------------------------------------------------------------------
+// recicap = new Vector()
+// recicap.record(&soma.i_cap(0.5))
+recih = new Vector()
+recih.record(&soma.ih(0.5))
+recit = new Vector()
+recit.record(&soma.ica(0.5))
+// recikc = new Vector()
+// recikc.record(&soma.iC(0.5))
+
+// Gating variables
+//----------------------------------------------------------------------------
+recmit = new Vector()
+recmit.record(&soma.m_itGHK(0.5))
+rechit = new Vector()
+rechit.record(&soma.h_itGHK(0.5))
+reco1ih = new Vector()
+reco1ih.record(&soma.o1_iar(0.5))
+reco2ih = new Vector()
+reco2ih.record(&soma.o2_iar(0.5))
+// recmikc = new Vector()
+// recmikc.record(&soma.m_iC(0.5))
+
+
+
+// Procedures for saving
+//----------------------------------------------------------------------------
+objref savdata
+objref tempmatrix
+tempmatrix = new Matrix()
+
+proc fileopen() {
+    savdata = new File()
+
+    savdata.wopen("tcrelay3c_corrh_kc_80_iTmhIhm_long.dat")
+}
+    
+proc slaop() {
+    tempmatrix.resize(recv.size(),7)   
+    tempmatrix.setcol(0,recv)
+    tempmatrix.setcol(1,recih)
+    tempmatrix.setcol(2,recit)
+    tempmatrix.setcol(3,recmit)
+    tempmatrix.setcol(4,rechit)
+    tempmatrix.setcol(5,reco1ih)
+    tempmatrix.setcol(6,reco2ih )
+
+
+	tempmatrix.fprint(savdata, " %g")
+    savdata.close()
+
+}
+
+
+
+
+  
+
+
+
+  
+
+
+
+
+
+                                 
+            
