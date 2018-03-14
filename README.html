@@ -50,8 +50,13 @@ help) to compile the channels, and then run (use nrngui in linux/unix) the tc...
 result in the voltage traces (and resulting spike trains) used in
 figures 9-11. The used 'holding currents' are set as 'El1.stim.amp'
 (i.e. the amplitude of the current injected via electrode 1). The data
-    can be saved with procedures 'fileopen()' and 'slaop()'. A sample excerpt from
-    the generated voltage trajectory:<p/>
+    can be saved with procedures 'fileopen()' and 'slaop()'.
+    Currently, the membrane potential of the soma, as well as the
+    current and gating variables of the h-current and T-type calcium
+    current are recorded and saved. A sample excerpt from the
+    generated voltage trajectory for El1.stim.amp = -0.7 ('holding
+    potential' -80 mV):
+<p/>
     <img src="./screenshot1.png" alt="screenshot 1"><p/>
   </li><li>In the 'influence_ih_iT' folder, the current-clamp experiments are
 repeated, but now the h-current is reduced by a factor (see figure 12
@@ -59,8 +64,8 @@ of the paper), that can be set at the top of the .hoc-file (as well as
 the 'holding potential' or 'membrane state' Vhold). This will then
 automatically adjust the mean input current ('El1.stim.amp'), the
 h-current conductivity and change the relevant filenames for saving
-(procedures 'fileopen()' and 'slaop()').A sample excerpt from
-    the generated voltage trajectory:<p/>
+    (procedures 'fileopen()' and 'slaop()').
+    A sample excerpt from the generated voltage trajectory for 'holding potential' vhold= -80 mV and factor=0.1:<p/>
     <img src="./screenshot2.png" alt="screenshot 2"><p/>
   </li><li>In the 'high_conductance_state', the experiment as shown in figure
 13 of the paper is simulated. A 'high-conductance-state ion channel'
@@ -68,11 +73,13 @@ h-current conductivity and change the relevant filenames for saving
 high-conductance-state. Moreover, two (exponential) synapses that
 receive (the same) Poisson spike trains, 'Esynapse' and 'Esynapse_i'
 are added to the dendrite. Again, 'fileopen()' and 'slaop()' can be
-used to save the results. A sample excerpt from
-    the generated voltage trajectory, and a couple other quantities:<p/>
+    used to save the results.
+    A sample excerpt from the generated voltage trajectory and a
+    couple of other quantities for the 'classic' high conductance
+    state:<p/>
     <img src="./screenshot3.png" alt="screenshot 3"><p/>
   </li>
-<li> Additional note: the data related to the model, the experiments with which it was verified, are also public (an account must be generated however it is free) and can be found here: <a href="https://data.donders.ru.nl/collections/shared/di.dcn.DSC_626840_0002_144/versions/1?0">https://data.donders.ru.nl/collections/shared/di.dcn.DSC_626840_0002_144/versions/1?0</a>. This is hosted by Radboud University, The Netherlands.
+<li> Additional note: the data related to the model, the experiments with which it was verified, are also public (an account must be generated, however it is free) and can be found here: <a href="https://data.donders.ru.nl/collections/shared/di.dcn.DSC_626840_0002_144/versions/1?0">https://data.donders.ru.nl/collections/shared/di.dcn.DSC_626840_0002_144/versions/1?0</a>. This is hosted by Radboud University, The Netherlands.
 </ol>
 
 </body>
